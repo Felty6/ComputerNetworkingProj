@@ -41,61 +41,61 @@ public class Client {
     }
 
     private void sendDataSegments() throws IOException {
-        int sequenceNumber = 0;
-        int sentSegments = 0;
-        int receivedAcks = 0;
-        int windowSize = INITIAL_WINDOW_SIZE;
+    int sequenceNumber = 0;
+    int sentSegments = 0;
+    int receivedAcks = 0;
+    int windowSize = INITIAL_WINDOW_SIZE;
 
-        while (sentSegments < 10000000) {
-            if (sentSegments % 1024 == 0) {
-                // Simulate segment loss by not sending every 1024th segment
-                if (Math.random() < 0.2) {
-                    System.out.println("Segment loss: " + sequenceNumber);
-                    sequenceNumber++;
-                    continue;
-                }
-            }
-
-            String segment = String.valueOf(sequenceNumber);
-            byte[] sendData = segment.getBytes();
-            DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, serverAddress, serverPort);
-            clientSocket.send(sendPacket);
-
-            byte[] receiveData = new byte[1024];
-            DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
-            clientSocket.receive(receivePacket);
-
-            String receivedData = new String(receivePacket.getData()).trim();
-            String[] dataParts = receivedData.split("\\s+");
-
-            if (dataParts[0].equals("ACK")) {
-                int ackSeqNum = Integer.parseInt(dataParts[1]);
-                if (ackSeqNum == sequenceNumber + 1) {
-                    sequenceNumber++;
-                    receivedAcks++;
-                }
-            }
-
-            if (sentSegments % 1024 == 0 || receivedAcks == windowSize) {
-                if (windowSize < MAX_WINDOW_SIZE) {
-                    windowSize *= 2;
-                }
-
-                if (receivedAcks == windowSize) {
-                    receivedAcks = 0;
-                }
-            }
-
-            sentSegments++;
-
-            windowSizeHistory.add(windowSize);
-            if (sentSegments % 1000 == 0) {
-                double goodPut = (double) sentSegments / (sentSegments - receivedAcks);
-                System.out.println("Sent segments: " + sentSegments + ", Received ACKs: " + receivedAcks
-                        + ", Window size: " + windowSize + ", Good-put: " + goodPut);
+    while (sentSegments < 10000000) {
+        if (sentSegments % 1024 == 0) {
+            // Simulate segment loss by not sending every 1024th segment
+            if (Math.random() < 0.2) {
+                System.out.println("Segment loss: " + sequenceNumber);
+                sequenceNumber++; // Skip this sequence number and continue with the next one
+                continue;
             }
         }
+
+        String segment = String.valueOf(sequenceNumber);
+        byte[] sendData = segment.getBytes();
+        DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, serverAddress, serverPort);
+        clientSocket.send(sendPacket);
+
+        byte[] receiveData = new byte[1024];
+        DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
+        clientSocket.receive(receivePacket);
+
+        String receivedData = new String(receivePacket.getData()).trim();
+        String[] dataParts = receivedData.split("\\s+");
+
+        if (dataParts[0].equals("ACK")) {
+            int ackSeqNum = Integer.parseInt(dataParts[1]);
+            if (ackSeqNum == sequenceNumber + 1) {
+                sequenceNumber++;
+                receivedAcks++;
+            }
+        }
+
+        if (sentSegments % 1024 == 0 || receivedAcks == windowSize) {
+            if (windowSize < MAX_WINDOW_SIZE) {
+                windowSize *= 2;
+            }
+
+            if (receivedAcks == windowSize) {
+                receivedAcks = 0;
+            }
+        }
+
+        sentSegments++;
+
+        windowSizeHistory.add(windowSize);
+        if (sentSegments % 1000 == 0) {
+            double goodPut = (double) sentSegments / (sentSegments - receivedAcks);
+            System.out.println("Sent segments: " + sentSegments + ", Received ACKs: " + receivedAcks
+                    + ", Window size: " + windowSize + ", Good-put: " + goodPut);
+        }
     }
+}
 
     public static void main(String[] args) {
         String serverIP = "YOUR_SERVER_IP"; // IP address of the server computer
