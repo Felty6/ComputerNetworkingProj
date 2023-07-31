@@ -16,25 +16,30 @@ public class Client {
         this.serverPort = serverPort;
     }
 
-    public void start() throws IOException {
-        // Send the initial string to the server
-        byte[] sendData = "network".getBytes();
-        DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, serverAddress, serverPort);
-        clientSocket.send(sendPacket);
+    public void start() {
+        try {
+            // Send the initial string to the server
+            byte[] sendData = "network".getBytes();
+            DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, serverAddress, serverPort);
+            clientSocket.send(sendPacket);
 
-        byte[] receiveData = new byte[1024];
-        DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
-        clientSocket.receive(receivePacket);
-        String receivedData = new String(receivePacket.getData()).trim();
+            byte[] receiveData = new byte[1024];
+            DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
+            clientSocket.receive(receivePacket);
+            String receivedData = new String(receivePacket.getData(), 0, receivePacket.getLength());
 
-        if (receivedData.equals("Connection setup success")) {
-            System.out.println("Connection established with server: " + serverAddress + ":" + serverPort);
+            if (receivedData.equals("Connection setup success")) {
+                System.out.println("Connection established with server: " + serverAddress + ":" + serverPort);
 
-            // Start sending data segments
-            sendDataSegments();
+                // Start sending data segments
+                sendDataSegments();
+            }
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            clientSocket.close();
         }
-
-        clientSocket.close();
     }
 
     private void sendDataSegments() throws IOException {
@@ -58,7 +63,7 @@ public class Client {
             byte[] receiveData = new byte[1024];
             DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
             clientSocket.receive(receivePacket);
-            String receivedData = new String(receivePacket.getData()).trim();
+            String receivedData = new String(receivePacket.getData(), 0, receivePacket.getLength());
 
             // Split the receivedData by whitespaces to handle any potential leading/trailing spaces
             String[] dataParts = receivedData.split("\\s+");
