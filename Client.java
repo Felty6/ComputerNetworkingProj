@@ -1,17 +1,17 @@
-package ComputerNetworkingProj;
 import java.io.IOException;
 import java.net.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Client {
     private static final int MAX_SEQUENCE_NUMBER = 65536; // maximum sequence number
-    private static final int INITIAL_WINDOW_SIZE = 1;    // sliding window initial
-    private static final int MAX_WINDOW_SIZE = 216;      // sliding window final
+    private static final int INITIAL_WINDOW_SIZE = 1; // sliding window initial
+    private static final int MAX_WINDOW_SIZE = 216; // sliding window final
 
     private DatagramSocket clientSocket;
     private InetAddress serverAddress;
     private int serverPort;
 
-    // store window size and sequence numbers history
     private List<Integer> windowSizeHistory = new ArrayList<>();
     private List<Integer> sentSeqNumHistory = new ArrayList<>();
 
@@ -22,7 +22,6 @@ public class Client {
     }
 
     public void start() throws IOException {
-        // Send the initial string to the server
         byte[] sendData = "network".getBytes();
         DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, serverAddress, serverPort);
         clientSocket.send(sendPacket);
@@ -35,7 +34,6 @@ public class Client {
         if (receivedData.equals("Connection setup success")) {
             System.out.println("Connection established with server: " + serverAddress + ":" + serverPort);
 
-            // Start sending data segments
             sendDataSegments();
         }
 
@@ -79,7 +77,6 @@ public class Client {
             }
 
             if (sentSegments % 1024 == 0 || receivedAcks == windowSize) {
-                // Sliding window adjustment
                 if (windowSize < MAX_WINDOW_SIZE) {
                     windowSize *= 2;
                 }
@@ -91,7 +88,6 @@ public class Client {
 
             sentSegments++;
 
-            // store the window size
             windowSizeHistory.add(windowSize);
             if (sentSegments % 1000 == 0) {
                 double goodPut = (double) sentSegments / (sentSegments - receivedAcks);
