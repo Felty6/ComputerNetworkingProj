@@ -1,7 +1,5 @@
 import java.io.IOException;
 import java.net.*;
-import java.util.ArrayList;
-import java.util.List;
 
 public class Client {
     private static final int MAX_SEQUENCE_NUMBER = 65536; // maximum sequence number
@@ -12,9 +10,6 @@ public class Client {
     private InetAddress serverAddress;
     private int serverPort;
 
-    private List<Integer> windowSizeHistory = new ArrayList<>();
-    private List<Integer> sentSeqNumHistory = new ArrayList<>();
-
     public Client(String serverIP, int serverPort) throws SocketException, UnknownHostException {
         clientSocket = new DatagramSocket();
         serverAddress = InetAddress.getByName(serverIP);
@@ -22,6 +17,7 @@ public class Client {
     }
 
     public void start() throws IOException {
+        // Send the initial string to the server
         byte[] sendData = "network".getBytes();
         DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, serverAddress, serverPort);
         clientSocket.send(sendPacket);
@@ -34,6 +30,7 @@ public class Client {
         if (receivedData.equals("Connection setup success")) {
             System.out.println("Connection established with server: " + serverAddress + ":" + serverPort);
 
+            // Start sending data segments
             sendDataSegments();
         }
 
@@ -41,64 +38,66 @@ public class Client {
     }
 
     private void sendDataSegments() throws IOException {
-    int sequenceNumber = 0;
-    int sentSegments = 0;
-    int receivedAcks = 0;
-    int windowSize = INITIAL_WINDOW_SIZE;
+        int sentSegments = 0;
+        int receivedAcks = 0;
+        int windowSize = INITIAL_WINDOW_SIZE;
 
-    while (sentSegments < 10000000) {
-        if (sentSegments % 1024 == 0) {
-            // Simulate segment loss by not sending every 1024th segment
-            if (Math.random() < 0.2) {
-                System.out.println("Segment loss: " + sequenceNumber);
-                sequenceNumber++; // Skip this sequence number and continue with the next one
-                continue;
-            }
-        }
+        while (sentSegments < 10000000) {
+            int base = sentSegments;
 
-        String segment = String.valueOf(sequenceNumber);
-        byte[] sendData = segment.getBytes();
-        DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, serverAddress, serverPort);
-        clientSocket.send(sendPacket);
+            for (int i = 0; i < windowSize; i++) {
+                int sequenceNumber = base + i;
+                if (sequenceNumber >= 10000000) {
+                    break; // Reached the end, stop sending
+                }
 
-        byte[] receiveData = new byte[1024];
-        DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
-        clientSocket.receive(receivePacket);
+                String segment = String.valueOf(sequenceNumber);
+                byte[] sendData = segment.getBytes();
+                DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, serverAddress, serverPort);
+                clientSocket.send(sendPacket);
 
-        String receivedData = new String(receivePacket.getData()).trim();
-        String[] dataParts = receivedData.split("\\s+");
-
-        if (dataParts[0].equals("ACK")) {
-            int ackSeqNum = Integer.parseInt(dataParts[1]);
-            if (ackSeqNum == sequenceNumber + 1) {
-                sequenceNumber++;
-                receivedAcks++;
-            }
-        }
-
-        if (sentSegments % 1024 == 0 || receivedAcks == windowSize) {
-            if (windowSize < MAX_WINDOW_SIZE) {
-                windowSize *= 2;
+                sentSegments++;
             }
 
-            if (receivedAcks == windowSize) {
-                receivedAcks = 0;
+            for (int i = 0; i < windowSize; i++) {
+                byte[] receiveData = new byte[1024];
+                DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
+                clientSocket.receive(receivePacket);
+
+                String receivedData = new String(receivePacket.getData()).trim();
+                String[] dataParts = receivedData.split("\\s+");
+
+                if (dataParts[0].equals("ACK")) {
+                    int ackSeqNum = Integer.parseInt(dataParts[1]);
+                    if (ackSeqNum > base) {
+                        int ackedSegments = ackSeqNum - base;
+                        receivedAcks += ackedSegments;
+                        break;
+                    }
+                }
             }
-        }
 
-        sentSegments++;
+            if (sentSegments % 1024 == 0 || receivedAcks == windowSize) {
+                if (windowSize < MAX_WINDOW_SIZE) {
+                    windowSize *= 2;
+                }
 
-        windowSizeHistory.add(windowSize);
-        if (sentSegments % 1000 == 0) {
-            double goodPut = (double) sentSegments / (sentSegments - receivedAcks);
-            System.out.println("Sent segments: " + sentSegments + ", Received ACKs: " + receivedAcks
-                    + ", Window size: " + windowSize + ", Good-put: " + goodPut);
+                if (receivedAcks == windowSize) {
+                    receivedAcks = 0;
+                }
+            }
+
+            windowSizeHistory.add(windowSize);
+            if (sentSegments % 1000 == 0) {
+                double goodPut = (double) sentSegments / (sentSegments - receivedAcks);
+                System.out.println("Sent segments: " + sentSegments + ", Received ACKs: " + receivedAcks
+                        + ", Window size: " + windowSize + ", Good-put: " + goodPut);
+            }
         }
     }
-}
 
     public static void main(String[] args) {
-        String serverIP = "YOUR_SERVER_IP"; // IP address of the server computer
+        String serverIP = "192.168.1.123"; // IP address of the server computer
         int serverPort = 6463; // Input server's port
 
         try {
