@@ -7,9 +7,9 @@ import java.net.InetAddress;
 import java.net.SocketException;
 
 public class Client {
-    private static final int MAX_SEQUENCE_NUMBER = 65536;
-    private static final int INITIAL_WINDOW_SIZE = 1;
-    private static final int MAX_WINDOW_SIZE = 216;
+    private static final int MAX_SEQUENCE_NUMBER = 65536; // maximum sequence number
+    private static final int INITIAL_WINDOW_SIZE = 1;    // sliding window initial
+    private static final int MAX_WINDOW_SIZE = 216;      // sliding window final
 
     private DatagramSocket clientSocket;
     private InetAddress serverAddress;
@@ -22,7 +22,6 @@ public class Client {
     }
 
     public void start() throws IOException {
-        // Send the initial string to the server
         byte[] sendData = "network".getBytes();
         DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, serverAddress, serverPort);
         clientSocket.send(sendPacket);
@@ -34,8 +33,6 @@ public class Client {
 
         if (receivedData.equals("Connection setup success")) {
             System.out.println("Connection established with server: " + serverAddress + ":" + serverPort);
-
-            // Start sending data segments
             sendDataSegments();
         }
 
@@ -66,10 +63,10 @@ public class Client {
             byte[] receiveData = new byte[1024];
             DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
             clientSocket.receive(receivePacket);
-            String receivedData = new String(receivePacket.getData()).trim();
 
-            // Split the receivedData by whitespaces to handle any potential leading/trailing spaces
+            String receivedData = new String(receivePacket.getData()).trim();
             String[] dataParts = receivedData.split("\\s+");
+
             if (dataParts[0].equals("ACK")) {
                 int ackSeqNum = Integer.parseInt(dataParts[1]);
                 if (ackSeqNum == sequenceNumber + 1) {
@@ -91,6 +88,7 @@ public class Client {
 
             sentSegments++;
 
+            // Periodically report average good-put
             if (sentSegments % 1000 == 0) {
                 double goodPut = (double) sentSegments / (sentSegments - receivedAcks);
                 System.out.println("Sent segments: " + sentSegments + ", Received ACKs: " + receivedAcks
@@ -110,5 +108,4 @@ public class Client {
             e.printStackTrace();
         }
     }
-}
 }
