@@ -38,45 +38,38 @@ public class Client {
     }
 
     private void sendDataSegments() throws IOException {
+        int sequenceNumber = 0;
         int sentSegments = 0;
         int receivedAcks = 0;
         int windowSize = INITIAL_WINDOW_SIZE;
 
         while (sentSegments < 10000000) {
-            int base = sentSegments;
+            // Send the next segment
+            String segment = String.valueOf(sequenceNumber);
+            byte[] sendData = segment.getBytes();
+            DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, serverAddress, serverPort);
+            clientSocket.send(sendPacket);
 
-            for (int i = 0; i < windowSize; i++) {
-                int sequenceNumber = base + i;
-                if (sequenceNumber >= 10000000) {
-                    break; // Reached the end, stop sending
-                }
+            // Increment sequence number and sentSegments
+            sequenceNumber++;
+            sentSegments++;
 
-                String segment = String.valueOf(sequenceNumber);
-                byte[] sendData = segment.getBytes();
-                DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, serverAddress, serverPort);
-                clientSocket.send(sendPacket);
+            // Receive ACK for the sent segment
+            byte[] receiveData = new byte[1024];
+            DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
+            clientSocket.receive(receivePacket);
+            String receivedData = new String(receivePacket.getData()).trim();
 
-                sentSegments++;
-            }
-
-            for (int i = 0; i < windowSize; i++) {
-                byte[] receiveData = new byte[1024];
-                DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
-                clientSocket.receive(receivePacket);
-
-                String receivedData = new String(receivePacket.getData()).trim();
-                String[] dataParts = receivedData.split("\\s+");
-
-                if (dataParts[0].equals("ACK")) {
-                    int ackSeqNum = Integer.parseInt(dataParts[1]);
-                    if (ackSeqNum > base) {
-                        int ackedSegments = ackSeqNum - base;
-                        receivedAcks += ackedSegments;
-                        break;
-                    }
+            // Split the receivedData by whitespaces to handle any potential leading/trailing spaces
+            String[] dataParts = receivedData.split("\\s+");
+            if (dataParts[0].equals("ACK")) {
+                int ackSeqNum = Integer.parseInt(dataParts[1]);
+                if (ackSeqNum == sequenceNumber) {
+                    receivedAcks++;
                 }
             }
 
+            // Sliding window adjustment
             if (sentSegments % 1024 == 0 || receivedAcks == windowSize) {
                 if (windowSize < MAX_WINDOW_SIZE) {
                     windowSize *= 2;
@@ -87,6 +80,7 @@ public class Client {
                 }
             }
 
+            // Output the current status periodically
             if (sentSegments % 1000 == 0) {
                 double goodPut = (double) sentSegments / (sentSegments - receivedAcks);
                 System.out.println("Sent segments: " + sentSegments + ", Received ACKs: " + receivedAcks
