@@ -9,13 +9,13 @@ import java.net.SocketException;
 public class Client {
     private static final int MAX_SEQUENCE_NUMBER = 65536;
     private static final int INITIAL_WINDOW_SIZE = 1;
-    private static final int MAX_WINDOW_SIZE = 65536;
+    private static final int MAX_WINDOW_SIZE = 216;
 
     private DatagramSocket clientSocket;
     private InetAddress serverAddress;
     private int serverPort;
 
-    public Client(String serverIP, int serverPort) throws SocketException, java.net.UnknownHostException {
+    public Client(String serverIP, int serverPort) throws SocketException, UnknownHostException {
         clientSocket = new DatagramSocket();
         serverAddress = InetAddress.getByName(serverIP);
         this.serverPort = serverPort;
