@@ -2,9 +2,9 @@ import java.io.IOException;
 import java.net.*;
 
 public class Client {
-    private static final int MAX_SEQUENCE_NUMBER = 65536; // maximum sequence number
-    private static final int INITIAL_WINDOW_SIZE = 1; // sliding window initial
-    private static final int MAX_WINDOW_SIZE = 65536; // sliding window final
+    private static final int MAX_SEQUENCE_NUMBER = 65536; // Maximum sequence number
+    private static final int INITIAL_WINDOW_SIZE = 1; // Sliding window initial
+    private static final int MAX_WINDOW_SIZE = 65536; // Sliding window final
 
     private DatagramSocket clientSocket;
     private InetAddress serverAddress;
@@ -47,8 +47,9 @@ public class Client {
         int sentSegments = 0;
         int receivedAcks = 0;
         int windowSize = INITIAL_WINDOW_SIZE;
+        int totalSegments = 10000; // Total segments to be sent
 
-        while (sentSegments < 10000000) {
+        while (sentSegments < totalSegments) {
             // Send the next segment
             String segment = String.valueOf(sequenceNumber);
             byte[] sendData = segment.getBytes();
