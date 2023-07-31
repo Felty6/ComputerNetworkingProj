@@ -6,7 +6,7 @@ import java.util.List;
 public class Client {
     private static final int MAX_SEQUENCE_NUMBER = 65536; // maximum sequence number
     private static final int INITIAL_WINDOW_SIZE = 1; // sliding window initial
-    private static final int MAX_WINDOW_SIZE = 216; // sliding window final
+    private static final int MAX_WINDOW_SIZE = 65536; // sliding window final
 
     private DatagramSocket clientSocket;
     private InetAddress serverAddress;
