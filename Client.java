@@ -87,7 +87,6 @@ public class Client {
                 }
             }
 
-            windowSizeHistory.add(windowSize);
             if (sentSegments % 1000 == 0) {
                 double goodPut = (double) sentSegments / (sentSegments - receivedAcks);
                 System.out.println("Sent segments: " + sentSegments + ", Received ACKs: " + receivedAcks
