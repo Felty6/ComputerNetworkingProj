@@ -1,10 +1,6 @@
 package ComputerNetworkingProj;
-
 import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.SocketException;
+import java.net.*;
 
 public class Client {
     private static final int MAX_SEQUENCE_NUMBER = 65536; // maximum sequence number
@@ -15,6 +11,10 @@ public class Client {
     private InetAddress serverAddress;
     private int serverPort;
 
+    // store window size and sequence numbers history
+    private List<Integer> windowSizeHistory = new ArrayList<>();
+    private List<Integer> sentSeqNumHistory = new ArrayList<>();
+
     public Client(String serverIP, int serverPort) throws SocketException, UnknownHostException {
         clientSocket = new DatagramSocket();
         serverAddress = InetAddress.getByName(serverIP);
@@ -22,6 +22,7 @@ public class Client {
     }
 
     public void start() throws IOException {
+        // Send the initial string to the server
         byte[] sendData = "network".getBytes();
         DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, serverAddress, serverPort);
         clientSocket.send(sendPacket);
@@ -33,6 +34,8 @@ public class Client {
 
         if (receivedData.equals("Connection setup success")) {
             System.out.println("Connection established with server: " + serverAddress + ":" + serverPort);
+
+            // Start sending data segments
             sendDataSegments();
         }
 
@@ -88,7 +91,8 @@ public class Client {
 
             sentSegments++;
 
-            // Periodically report average good-put
+            // store the window size
+            windowSizeHistory.add(windowSize);
             if (sentSegments % 1000 == 0) {
                 double goodPut = (double) sentSegments / (sentSegments - receivedAcks);
                 System.out.println("Sent segments: " + sentSegments + ", Received ACKs: " + receivedAcks
