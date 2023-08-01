@@ -28,7 +28,7 @@ public class Client {
     public void start() throws IOException {
         // Ping the server IP address to check if the server is running
         if (!pingServer()) {
-            System.out.println("Unsuccessful connection. Server of IP address 192.168.1.123 is not running.");
+            System.out.println("Unsuccessful connection. Server of IP address given is not running.");
             return;
         }
 
