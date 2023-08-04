@@ -98,7 +98,6 @@ public class Client {
             while (true) {
                 // Check if the client is still connected
                 if (!isConnected) {
-                    System.out.println("Disconnected with the server");
                     return;
                 }
 
@@ -148,7 +147,6 @@ public class Client {
 
                 // If the timer exceeds the timeout, resend the unacknowledged segment
                 if (System.currentTimeMillis() - startTime >= TIMEOUT) {
-                    System.out.println("Timeout. Resending unacknowledged segments.");
                     break;
                 }
             }
