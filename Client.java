@@ -26,26 +26,41 @@ public class Client {
         windowSize = INITIAL_WINDOW_SIZE;
     }
 
-    public void start() throws IOException {
+    public void start() {
         if (!isConnected) {
             // Send the initial string to the server
             String initialString = "network";
-            sendData(initialString);
+            try {
+                sendData(initialString);
+            } catch (IOException e) {
+                e.printStackTrace();
+                return;
+            }
         }
 
         byte[] receiveData = new byte[1024];
         DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
 
         // Receive connection setup success message from the server
-        clientSocket.receive(receivePacket);
-        String receivedData = new String(receivePacket.getData()).trim();
+        try {
+            clientSocket.receive(receivePacket);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return;
+        }
+
+        String receivedData = new String(receivePacket.getData(), 0, receivePacket.getLength()).trim();
 
         if (receivedData.equals("Connection setup success")) {
             System.out.println("Connection established with server: " + serverAddress + ":" + serverPort);
             isConnected = true;
 
             // Start sending data segments
-            sendDataSegments();
+            try {
+                sendDataSegments();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         } else {
             System.out.println("Failed to establish a connection with the server.");
         }
@@ -59,29 +74,42 @@ public class Client {
         int sentSegments = 0;
         int receivedAcks = 0;
         int lastAckSeqNum = -1;
-        int lastSentSeqNum = -1;
-        int missingSeqNumCount = 0;
+        boolean isSegmentLost = false;
 
         while (sentSegments < 10000000 && isConnected) {
             if (sequenceNumber % 1024 == 0) {
                 // Simulate segment loss by not sending every 1024th segment
                 if (Math.random() < 0.2) {
                     System.out.println("Segment loss: " + sequenceNumber);
-                    sequenceNumber++;
-                    continue;
+                    isSegmentLost = true;
+                } else {
+                    isSegmentLost = false;
                 }
             }
 
-            String segment = String.valueOf(sequenceNumber);
-            sendData(segment);
+            if (!isSegmentLost) {
+                String segment = String.valueOf(sequenceNumber);
+                sendData(segment);
+            }
 
             // Start a timer for each segment sent
             long startTime = System.currentTimeMillis();
 
             while (true) {
+                // Check if the client is still connected
+                if (!isConnected) {
+                    System.out.println("Disconnected with the server");
+                    return;
+                }
+
+                // Check if an ACK has been received
+                byte[] receiveData = new byte[1024];
+                DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
+                clientSocket.setSoTimeout(TIMEOUT);
+
                 try {
                     clientSocket.receive(receivePacket);
-                    String receivedAckData = new String(receivePacket.getData()).trim();
+                    String receivedAckData = new String(receivePacket.getData(), 0, receivePacket.getLength()).trim();
 
                     // Split the receivedAckData by whitespaces to handle any potential leading/trailing spaces
                     String[] dataParts = receivedAckData.split("\\s+");
@@ -90,7 +118,6 @@ public class Client {
                         if (ackSeqNum > lastAckSeqNum) {
                             receivedAcks += ackSeqNum - lastAckSeqNum;
                             lastAckSeqNum = ackSeqNum;
-                            missingSeqNumCount = 0;
 
                             // Adjust sliding window size based on ACK received
                             if (windowSize < MAX_WINDOW_SIZE) {
@@ -103,18 +130,7 @@ public class Client {
                 } catch (SocketTimeoutException e) {
                     // Resend the unacknowledged segment
                     System.out.println("Timeout. Resending unacknowledged segments.");
-                    sequenceNumber = lastAckSeqNum + 1;
-                    windowSize = Math.max(INITIAL_WINDOW_SIZE, windowSize / 2);
-                    missingSeqNumCount++;
-
-                    // Break if no progress in window size adjustment after a segment loss
-                    if (missingSeqNumCount >= windowSize) {
-                        System.out.println("Timeout. No progress in window size adjustment. Exiting.");
-                        isConnected = false;
-                        break;
-                    }
-
-                    continue;
+                    break;
                 }
 
                 // If all the segments are acknowledged, increase the window size
@@ -123,15 +139,14 @@ public class Client {
                 }
 
                 // If the window is full, stop the timer and move to the next segment
-                if (sequenceNumber - lastSentSeqNum >= windowSize) {
+                if (sequenceNumber - lastAckSeqNum + 1 >= windowSize) {
                     break;
                 }
 
                 // If the timer exceeds the timeout, resend the unacknowledged segment
                 if (System.currentTimeMillis() - startTime >= TIMEOUT) {
                     System.out.println("Timeout. Resending unacknowledged segments.");
-                    sequenceNumber = lastAckSeqNum + 1;
-                    continue;
+                    break;
                 }
             }
 
@@ -139,20 +154,15 @@ public class Client {
 
             // Store the window size
             windowSizeHistory.add(windowSize);
-            sentSeqNumHistory.add(sequenceNumber);
-
             if (sentSegments % 1000 == 0) {
                 // Goodput formula
-                double goodPut = (double) receivedAcks / sentSegments;
+                double goodPut = (double) sentSegments / (sentSegments - receivedAcks);
                 System.out.println("Sent segments: " + sentSegments + ", Received ACKs: " + receivedAcks
                         + ", Window size: " + windowSize + ", Good-put: " + goodPut);
             }
 
             sequenceNumber++;
-            lastSentSeqNum = sequenceNumber - 1;
         }
-
-        System.out.println("Disconnected with the server.");
     }
 
     private void sendData(String message) throws IOException {
