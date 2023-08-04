@@ -12,9 +12,8 @@ public class Client {
     private DatagramSocket clientSocket;
     private InetAddress serverAddress;
     private int serverPort;
-    private boolean isConnected = false;
-    private int nextExpectedSeqNum = 0;
-    private int windowSize = INITIAL_WINDOW_SIZE;
+    private boolean isConnected;
+
     private List<Integer> windowSizeHistory = new ArrayList<>();
     private List<Integer> sentSeqNumHistory = new ArrayList<>();
 
@@ -22,27 +21,19 @@ public class Client {
         clientSocket = new DatagramSocket();
         serverAddress = InetAddress.getByName(serverIP);
         this.serverPort = serverPort;
+        isConnected = false;
     }
 
     public void start() throws IOException {
         if (!isConnected) {
             // Send the initial string to the server
             String initialString = "network";
-            sendData(initialString.getBytes());
+            sendData(initialString);
         }
 
         byte[] receiveData = new byte[1024];
         DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
-        clientSocket.setSoTimeout(TIMEOUT);
-
-        try {
-            clientSocket.receive(receivePacket);
-        } catch (SocketTimeoutException e) {
-            System.out.println("Timeout. Unable to connect to the server.");
-            clientSocket.close();
-            return;
-        }
-
+        clientSocket.receive(receivePacket);
         String receivedData = new String(receivePacket.getData()).trim();
 
         if (receivedData.equals("Connection setup success")) {
@@ -52,26 +43,30 @@ public class Client {
             // Start sending data segments
             sendDataSegments();
         } else {
-            System.out.println("Connection setup failed.");
-            clientSocket.close();
+            System.out.println("Failed to establish a connection with the server.");
         }
+
+        clientSocket.close();
     }
 
     private void sendDataSegments() throws IOException {
         int sequenceNumber = 0;
         int sentSegments = 0;
         int receivedAcks = 0;
+        int windowSize = INITIAL_WINDOW_SIZE;
         int lastAckSeqNum = 0;
 
-        while (sentSegments < 10000000 && isConnected) {
-            int[] segment = new int[1024];
-
-            // Prepare the segment with 1024 sequence numbers
-            for (int i = 0; i < 1024; i++) {
-                segment[i] = sequenceNumber;
-                sequenceNumber++;
+        while (sentSegments < 10000000) {
+            if (sequenceNumber % 1024 == 0) {
+                // Simulate segment loss by not sending every 1024th segment
+                if (Math.random() < 0.2) {
+                    System.out.println("Segment loss: " + sequenceNumber);
+                    sequenceNumber++;
+                    continue;
+                }
             }
 
+            String segment = String.valueOf(sequenceNumber);
             sendData(segment);
 
             // Start a timer for each segment sent
@@ -109,7 +104,7 @@ public class Client {
                 }
 
                 // If the window is full, stop the timer and move to the next segment
-                if (sequenceNumber - lastAckSeqNum >= windowSize) {
+                if (sequenceNumber - lastAckSeqNum + 1 >= windowSize) {
                     break;
                 }
 
@@ -126,23 +121,17 @@ public class Client {
             windowSizeHistory.add(windowSize);
             if (sentSegments % 1000 == 0) {
                 // Goodput formula
-                double goodPut = (double) receivedAcks / sentSegments;
+                double goodPut = (double) sentSegments / (sentSegments - receivedAcks);
                 System.out.println("Sent segments: " + sentSegments + ", Received ACKs: " + receivedAcks
                         + ", Window size: " + windowSize + ", Good-put: " + goodPut);
             }
-        }
 
-        isConnected = false;
-        sentSeqNumHistory.clear();
-        clientSocket.close();
+            sequenceNumber++;
+        }
     }
 
-    private void sendData(int[] segment) throws IOException {
-        StringBuilder sb = new StringBuilder();
-        for (int seqNum : segment) {
-            sb.append(seqNum).append(" ");
-        }
-        byte[] sendData = sb.toString().getBytes();
+    private void sendData(String message) throws IOException {
+        byte[] sendData = message.getBytes();
         DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, serverAddress, serverPort);
         clientSocket.send(sendPacket);
     }
@@ -153,7 +142,9 @@ public class Client {
 
         try {
             Client client = new Client(serverIP, serverPort);
-            client.start();
+            while (true) {
+                client.start();
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
