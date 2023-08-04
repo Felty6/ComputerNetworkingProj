@@ -75,6 +75,9 @@ public class Client {
         int receivedAcks = 0;
         int lastAckSeqNum = -1;
 
+        // Initialize the client's window size to the server's initial window size
+        windowSize = INITIAL_WINDOW_SIZE;
+
         while (sentSegments < 10000000 && isConnected) {
             String segment = String.valueOf(sequenceNumber);
             sendData(segment);
@@ -100,14 +103,8 @@ public class Client {
                             receivedAcks += ackSeqNum - lastAckSeqNum;
                             lastAckSeqNum = ackSeqNum;
 
-                            // Adjust sliding window size based on ACK received
-                            if (windowSize < MAX_WINDOW_SIZE) {
-                                // Additive Increase
-                                windowSize = Math.min(windowSize * 2, MAX_WINDOW_SIZE);
-                            } else {
-                                // Window is already at maximum size, maintain it
-                                windowSize = MAX_WINDOW_SIZE;
-                            }
+                            // Update sliding window size based on ACK received
+                            windowSize = Integer.parseInt(dataParts[2]);
                         }
                     }
                 } catch (SocketTimeoutException e) {
@@ -148,7 +145,7 @@ public class Client {
 
             // Slow down the ticks for sending segments
             try {
-                Thread.sleep(50);
+                Thread.sleep(2000); // Sleep for 2 seconds
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
