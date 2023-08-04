@@ -74,10 +74,23 @@ public class Client {
         int sentSegments = 0;
         int receivedAcks = 0;
         int lastAckSeqNum = -1;
+        boolean isSegmentLost = false;
 
         while (sentSegments < 10000000 && isConnected) {
-            String segment = String.valueOf(sequenceNumber);
-            sendData(segment);
+            if (sequenceNumber % 1024 == 0) {
+                // Simulate segment loss by not sending every 1024th segment
+                if (Math.random() < 0.2) {
+                    System.out.println("Segment loss: " + sequenceNumber);
+                    isSegmentLost = true;
+                } else {
+                    isSegmentLost = false;
+                }
+            }
+
+            if (!isSegmentLost) {
+                String segment = String.valueOf(sequenceNumber);
+                sendData(segment);
+            }
 
             // Start a timer for each segment sent
             long startTime = System.currentTimeMillis();
@@ -108,9 +121,8 @@ public class Client {
 
                             // Adjust sliding window size based on ACK received
                             if (windowSize < MAX_WINDOW_SIZE) {
-                                windowSize *= 2;
-                            } else {
-                                windowSize = MAX_WINDOW_SIZE;
+                                // Additive Increase
+                                windowSize = Math.min(windowSize * 2, MAX_WINDOW_SIZE);
                             }
                         }
                     }
@@ -133,6 +145,7 @@ public class Client {
 
                 // If the timer exceeds the timeout, resend the unacknowledged segment
                 if (System.currentTimeMillis() - startTime >= TIMEOUT) {
+                    System.out.println("Timeout. Resending unacknowledged segments.");
                     break;
                 }
             }
