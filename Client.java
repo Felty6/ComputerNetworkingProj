@@ -123,6 +123,9 @@ public class Client {
                             if (windowSize < MAX_WINDOW_SIZE) {
                                 // Additive Increase
                                 windowSize = Math.min(windowSize * 2, MAX_WINDOW_SIZE);
+                            } else {
+                                // Window is already at maximum size, maintain it
+                                windowSize = MAX_WINDOW_SIZE;
                             }
                         }
                     }
