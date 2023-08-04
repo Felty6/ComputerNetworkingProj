@@ -142,13 +142,6 @@ public class Client {
             }
 
             sequenceNumber++;
-
-            // Slow down the ticks for sending segments
-            try {
-                Thread.sleep(2000); // Sleep for 2 seconds
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
         }
     }
 
