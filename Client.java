@@ -76,16 +76,6 @@ public class Client {
             long startTime = System.currentTimeMillis();
 
             while (true) {
-                // Check if the client is still connected
-                if (!isConnected) {
-                    break;
-                }
-
-                // Check if an ACK has been received
-                byte[] receiveData = new byte[1024];
-                DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
-                clientSocket.setSoTimeout(TIMEOUT);
-
                 try {
                     clientSocket.receive(receivePacket);
                     String receivedAckData = new String(receivePacket.getData()).trim();
