@@ -81,6 +81,8 @@ public class Client {
                 // Check if an ACK has been received
                 byte[] receiveData = new byte[1024];
                 DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
+
+                // Set a timeout for receiving ACK
                 clientSocket.setSoTimeout(TIMEOUT);
 
                 try {
@@ -151,9 +153,7 @@ public class Client {
 
         try {
             Client client = new Client(serverIP, serverPort);
-            while (true) {
-                client.start();
-            }
+            client.start();
         } catch (IOException e) {
             e.printStackTrace();
         }
