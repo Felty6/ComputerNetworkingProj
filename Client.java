@@ -27,39 +27,41 @@ public class Client {
     }
 
     public void start() throws IOException {
-        while (true) {
-            if (!isConnected) {
-                // Send the initial string to the server
-                String initialString = "network";
-                sendData(initialString);
-            }
-
-            byte[] receiveData = new byte[1024];
-            DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
-            clientSocket.receive(receivePacket);
-            String receivedData = new String(receivePacket.getData()).trim();
-
-            if (receivedData.equals("Connection setup success")) {
-                System.out.println("Connection established with server: " + serverAddress + ":" + serverPort);
-                isConnected = true;
-
-                // Start sending data segments
-                sendDataSegments();
-            } else {
-                System.out.println("Failed to establish a connection with the server. Retrying...");
-                isConnected = false;
-            }
+        if (!isConnected) {
+            // Send the initial string to the server
+            String initialString = "network";
+            sendData(initialString);
         }
+
+        byte[] receiveData = new byte[1024];
+        DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
+
+        // Receive connection setup success message from the server
+        clientSocket.receive(receivePacket);
+        String receivedData = new String(receivePacket.getData()).trim();
+
+        if (receivedData.equals("Connection setup success")) {
+            System.out.println("Connection established with server: " + serverAddress + ":" + serverPort);
+            isConnected = true;
+
+            // Start sending data segments
+            sendDataSegments();
+        } else {
+            System.out.println("Failed to establish a connection with the server.");
+        }
+
+        // Close the client socket after sending segments
+        clientSocket.close();
     }
 
     private void sendDataSegments() throws IOException {
         int sequenceNumber = 0;
         int sentSegments = 0;
         int receivedAcks = 0;
-        int lastAckSeqNum = 0;
+        int lastAckSeqNum = -1;
         boolean isSegmentLost = false;
 
-        while (sentSegments < 10000000) {
+        while (sentSegments < 10000000 && isConnected) {
             if (sequenceNumber % 1024 == 0) {
                 // Simulate segment loss by not sending every 1024th segment
                 if (Math.random() < 0.2) {
@@ -79,6 +81,11 @@ public class Client {
             long startTime = System.currentTimeMillis();
 
             while (true) {
+                // Check if the client is still connected
+                if (!isConnected) {
+                    break;
+                }
+
                 // Check if an ACK has been received
                 byte[] receiveData = new byte[1024];
                 DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
@@ -95,6 +102,13 @@ public class Client {
                         if (ackSeqNum > lastAckSeqNum) {
                             receivedAcks += ackSeqNum - lastAckSeqNum;
                             lastAckSeqNum = ackSeqNum;
+
+                            // Adjust sliding window size based on ACK received
+                            if (windowSize < MAX_WINDOW_SIZE) {
+                                windowSize *= 2;
+                            } else {
+                                windowSize = MAX_WINDOW_SIZE;
+                            }
                         }
                     }
                 } catch (SocketTimeoutException e) {
@@ -105,7 +119,6 @@ public class Client {
 
                 // If all the segments are acknowledged, increase the window size
                 if (receivedAcks == windowSize) {
-                    windowSize = Math.min(MAX_WINDOW_SIZE, windowSize * 2);
                     receivedAcks = 0;
                 }
 
@@ -134,8 +147,6 @@ public class Client {
 
             sequenceNumber++;
         }
-
-        isConnected = false;
     }
 
     private void sendData(String message) throws IOException {
