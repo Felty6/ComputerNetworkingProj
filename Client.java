@@ -8,13 +8,13 @@ public class Client {
     private static final int INITIAL_WINDOW_SIZE = 1;
     private static final int MAX_WINDOW_SIZE = 65536;
     private static final int TIMEOUT = 1000; // Milliseconds
-    private static final int CLIENT_TIMEOUT = 5000; // 5 seconds
 
     private DatagramSocket clientSocket;
     private InetAddress serverAddress;
     private int serverPort;
     private boolean isConnected = false;
-
+    private int nextExpectedSeqNum = 0;
+    private int windowSize = INITIAL_WINDOW_SIZE;
     private List<Integer> windowSizeHistory = new ArrayList<>();
     private List<Integer> sentSeqNumHistory = new ArrayList<>();
 
@@ -30,7 +30,7 @@ public class Client {
 
         byte[] receiveData = new byte[1024];
         DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
-        clientSocket.setSoTimeout(CLIENT_TIMEOUT);
+        clientSocket.setSoTimeout(TIMEOUT);
 
         try {
             clientSocket.receive(receivePacket);
@@ -58,20 +58,17 @@ public class Client {
         int sequenceNumber = 0;
         int sentSegments = 0;
         int receivedAcks = 0;
-        int windowSize = INITIAL_WINDOW_SIZE;
         int lastAckSeqNum = 0;
 
         while (sentSegments < 10000000 && isConnected) {
-            if (sequenceNumber % 1024 == 0) {
-                // Simulate segment loss by not sending every 1024th segment
-                if (Math.random() < 0.2) {
-                    System.out.println("Segment loss: " + sequenceNumber);
-                    sequenceNumber++;
-                    continue;
-                }
+            int[] segment = new int[1024];
+
+            // Prepare the segment with 1024 sequence numbers
+            for (int i = 0; i < 1024; i++) {
+                segment[i] = sequenceNumber;
+                sequenceNumber++;
             }
 
-            String segment = String.valueOf(sequenceNumber);
             sendData(segment);
 
             // Start a timer for each segment sent
@@ -109,7 +106,7 @@ public class Client {
                 }
 
                 // If the window is full, stop the timer and move to the next segment
-                if (sequenceNumber - lastAckSeqNum + 1 >= windowSize) {
+                if (sequenceNumber - lastAckSeqNum >= windowSize) {
                     break;
                 }
 
@@ -126,12 +123,10 @@ public class Client {
             windowSizeHistory.add(windowSize);
             if (sentSegments % 1000 == 0) {
                 // Goodput formula
-                double goodPut = (double) sentSegments / (sentSegments - receivedAcks);
+                double goodPut = (double) receivedAcks / sentSegments;
                 System.out.println("Sent segments: " + sentSegments + ", Received ACKs: " + receivedAcks
                         + ", Window size: " + windowSize + ", Good-put: " + goodPut);
             }
-
-            sequenceNumber++;
         }
 
         isConnected = false;
@@ -139,8 +134,12 @@ public class Client {
         clientSocket.close();
     }
 
-    private void sendData(String message) throws IOException {
-        byte[] sendData = message.getBytes();
+    private void sendData(int[] segment) throws IOException {
+        StringBuilder sb = new StringBuilder();
+        for (int seqNum : segment) {
+            sb.append(seqNum).append(" ");
+        }
+        byte[] sendData = sb.toString().getBytes();
         DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, serverAddress, serverPort);
         clientSocket.send(sendPacket);
     }
