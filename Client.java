@@ -91,11 +91,6 @@ public class Client {
             long startTime = System.currentTimeMillis();
 
             while (true) {
-                // Check if the client is still connected
-                if (!isConnected) {
-                    return;
-                }
-
                 // Check if an ACK has been received
                 byte[] receiveData = new byte[1024];
                 DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
@@ -125,9 +120,8 @@ public class Client {
                     }
                 } catch (SocketTimeoutException e) {
                     // Timeout reached, no ACK received, assume server is offline
-                    System.out.println("Server is offline. Disconnecting from the server.");
                     isConnected = false;
-                    return;
+                    break;
                 }
 
                 // If all the segments are acknowledged, increase the window size
