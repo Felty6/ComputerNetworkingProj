@@ -76,67 +76,60 @@ public class Client {
         int lastAckSeqNum = -1;
 
         while (sentSegments < 10000000 && isConnected) {
-            if (sequenceNumber % 1024 == 0) {
-                // Simulate segment loss by not sending every 1024th segment
-                if (Math.random() < 0.2) {
-                    System.out.println("Segment loss: " + sequenceNumber);
-                } else {
-                    String segment = String.valueOf(sequenceNumber);
-                    sendData(segment);
+            String segment = String.valueOf(sequenceNumber);
+            sendData(segment);
 
-                    // Start a timer for each segment sent
-                    long startTime = System.currentTimeMillis();
+            // Start a timer for each segment sent
+            long startTime = System.currentTimeMillis();
 
-                    while (true) {
-                        // Check if an ACK has been received
-                        byte[] receiveData = new byte[1024];
-                        DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
-                        clientSocket.setSoTimeout(TIMEOUT);
+            while (true) {
+                // Check if an ACK has been received
+                byte[] receiveData = new byte[1024];
+                DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
+                clientSocket.setSoTimeout(TIMEOUT);
 
-                        try {
-                            clientSocket.receive(receivePacket);
-                            String receivedAckData = new String(receivePacket.getData(), 0, receivePacket.getLength()).trim();
+                try {
+                    clientSocket.receive(receivePacket);
+                    String receivedAckData = new String(receivePacket.getData(), 0, receivePacket.getLength()).trim();
 
-                            // Split the receivedAckData by whitespaces to handle any potential leading/trailing spaces
-                            String[] dataParts = receivedAckData.split("\\s+");
-                            if (dataParts[0].equals("ACK")) {
-                                int ackSeqNum = Integer.parseInt(dataParts[1]);
-                                if (ackSeqNum > lastAckSeqNum) {
-                                    receivedAcks += ackSeqNum - lastAckSeqNum;
-                                    lastAckSeqNum = ackSeqNum;
+                    // Split the receivedAckData by whitespaces to handle any potential leading/trailing spaces
+                    String[] dataParts = receivedAckData.split("\\s+");
+                    if (dataParts[0].equals("ACK")) {
+                        int ackSeqNum = Integer.parseInt(dataParts[1]);
+                        if (ackSeqNum > lastAckSeqNum) {
+                            receivedAcks += ackSeqNum - lastAckSeqNum;
+                            lastAckSeqNum = ackSeqNum;
 
-                                    // Adjust sliding window size based on ACK received
-                                    if (windowSize < MAX_WINDOW_SIZE) {
-                                        // Additive Increase
-                                        windowSize = Math.min(windowSize * 2, MAX_WINDOW_SIZE);
-                                    } else {
-                                        // Window is already at maximum size, maintain it
-                                        windowSize = MAX_WINDOW_SIZE;
-                                    }
-                                }
+                            // Adjust sliding window size based on ACK received
+                            if (windowSize < MAX_WINDOW_SIZE) {
+                                // Additive Increase
+                                windowSize = Math.min(windowSize * 2, MAX_WINDOW_SIZE);
+                            } else {
+                                // Window is already at maximum size, maintain it
+                                windowSize = MAX_WINDOW_SIZE;
                             }
-                        } catch (SocketTimeoutException e) {
-                            // Timeout reached, no ACK received, assume segment loss
-                            System.out.println("Timeout. Resending unacknowledged segment: " + sequenceNumber);
-                            break;
-                        }
-
-                        // If all the segments are acknowledged, increase the window size
-                        if (receivedAcks == windowSize) {
-                            receivedAcks = 0;
-                        }
-
-                        // If the window is full, stop the timer and move to the next segment
-                        if (sequenceNumber - lastAckSeqNum + 1 >= windowSize) {
-                            break;
-                        }
-
-                        // If the timer exceeds the timeout, resend the unacknowledged segment
-                        if (System.currentTimeMillis() - startTime >= TIMEOUT) {
-                            System.out.println("Timeout. Resending unacknowledged segment: " + sequenceNumber);
-                            break;
                         }
                     }
+                } catch (SocketTimeoutException e) {
+                    // Timeout reached, no ACK received, assume segment loss
+                    System.out.println("Timeout. Resending unacknowledged segment: " + sequenceNumber);
+                    break;
+                }
+
+                // If all the segments are acknowledged, increase the window size
+                if (receivedAcks == windowSize) {
+                    receivedAcks = 0;
+                }
+
+                // If the window is full, stop the timer and move to the next segment
+                if (sequenceNumber - lastAckSeqNum + 1 >= windowSize) {
+                    break;
+                }
+
+                // If the timer exceeds the timeout, resend the unacknowledged segment
+                if (System.currentTimeMillis() - startTime >= TIMEOUT) {
+                    System.out.println("Timeout. Resending unacknowledged segment: " + sequenceNumber);
+                    break;
                 }
             }
 
