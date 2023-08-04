@@ -59,23 +59,18 @@ public class Client {
         int sentSegments = 0;
         int receivedAcks = 0;
         int lastAckSeqNum = -1;
-        boolean isSegmentLost = false;
 
         while (sentSegments < 10000000 && isConnected) {
             if (sequenceNumber % 1024 == 0) {
                 // Simulate segment loss by not sending every 1024th segment
                 if (Math.random() < 0.2) {
                     System.out.println("Segment loss: " + sequenceNumber);
-                    isSegmentLost = true;
-                } else {
-                    isSegmentLost = false;
+                    continue;
                 }
             }
 
-            if (!isSegmentLost) {
-                String segment = String.valueOf(sequenceNumber);
-                sendData(segment);
-            }
+            String segment = String.valueOf(sequenceNumber);
+            sendData(segment);
 
             // Start a timer for each segment sent
             long startTime = System.currentTimeMillis();
@@ -93,10 +88,10 @@ public class Client {
 
                 try {
                     clientSocket.receive(receivePacket);
-                    String receivedData = new String(receivePacket.getData()).trim();
+                    String receivedAckData = new String(receivePacket.getData()).trim();
 
-                    // Split the receivedData by whitespaces to handle any potential leading/trailing spaces
-                    String[] dataParts = receivedData.split("\\s+");
+                    // Split the receivedAckData by whitespaces to handle any potential leading/trailing spaces
+                    String[] dataParts = receivedAckData.split("\\s+");
                     if (dataParts[0].equals("ACK")) {
                         int ackSeqNum = Integer.parseInt(dataParts[1]);
                         if (ackSeqNum > lastAckSeqNum) {
