@@ -25,8 +25,11 @@ public class Client {
     }
 
     public void start() throws IOException {
-        // Send the initial string to the server
-        sendData("network");
+        if (!isConnected) {
+            // Send the initial string to the server
+            String initialString = "network";
+            sendData(initialString.getBytes());
+        }
 
         byte[] receiveData = new byte[1024];
         DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
