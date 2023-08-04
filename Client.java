@@ -29,41 +29,26 @@ public class Client {
     public void start() throws IOException {
         while (true) {
             if (!isConnected) {
-                System.out.println("Waiting for connection with the server...");
-                try {
-                    // Try to connect to the server
-                    connectToServer();
-                } catch (IOException e) {
-                    // Connection failed, retry after a short delay
-                    try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException ex) {
-                        ex.printStackTrace();
-                    }
-                }
-            } else {
+                // Send the initial string to the server
+                String initialString = "network";
+                sendData(initialString);
+            }
+
+            byte[] receiveData = new byte[1024];
+            DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
+            clientSocket.receive(receivePacket);
+            String receivedData = new String(receivePacket.getData()).trim();
+
+            if (receivedData.equals("Connection setup success")) {
+                System.out.println("Connection established with server: " + serverAddress + ":" + serverPort);
+                isConnected = true;
+
                 // Start sending data segments
                 sendDataSegments();
-                break;
+            } else {
+                System.out.println("Failed to establish a connection with the server. Retrying...");
+                isConnected = false;
             }
-        }
-    }
-
-    private void connectToServer() throws IOException {
-        // Send the initial string to the server
-        String initialString = "network";
-        sendData(initialString);
-
-        byte[] receiveData = new byte[1024];
-        DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
-        clientSocket.receive(receivePacket);
-        String receivedData = new String(receivePacket.getData(), 0, receivePacket.getLength());
-
-        if (receivedData.equals("Connection setup success")) {
-            System.out.println("Connection established with server: " + serverAddress + ":" + serverPort);
-            isConnected = true;
-        } else {
-            System.out.println("Failed to establish a connection with the server.");
         }
     }
 
@@ -74,7 +59,7 @@ public class Client {
         int lastAckSeqNum = 0;
         boolean isSegmentLost = false;
 
-        while (isConnected && sentSegments < 10000000) {
+        while (sentSegments < 10000000) {
             if (sequenceNumber % 1024 == 0) {
                 // Simulate segment loss by not sending every 1024th segment
                 if (Math.random() < 0.2) {
@@ -97,13 +82,11 @@ public class Client {
                 // Check if an ACK has been received
                 byte[] receiveData = new byte[1024];
                 DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
-
-                // Set a timeout for receiving ACK
                 clientSocket.setSoTimeout(TIMEOUT);
 
                 try {
                     clientSocket.receive(receivePacket);
-                    String receivedData = new String(receivePacket.getData(), 0, receivePacket.getLength());
+                    String receivedData = new String(receivePacket.getData()).trim();
 
                     // Split the receivedData by whitespaces to handle any potential leading/trailing spaces
                     String[] dataParts = receivedData.split("\\s+");
@@ -153,11 +136,6 @@ public class Client {
         }
 
         isConnected = false;
-        // Close the client socket after sending segments
-        clientSocket.close();
-
-        System.out.println("Disconnected with the server.");
-        System.exit(0);
     }
 
     private void sendData(String message) throws IOException {
