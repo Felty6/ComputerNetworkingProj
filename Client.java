@@ -74,23 +74,10 @@ public class Client {
         int sentSegments = 0;
         int receivedAcks = 0;
         int lastAckSeqNum = -1;
-        boolean isSegmentLost = false;
 
         while (sentSegments < 10000000 && isConnected) {
-            if (sequenceNumber % 1024 == 0) {
-                // Simulate segment loss by not sending every 1024th segment
-                if (Math.random() < 0.2) {
-                    System.out.println("Segment loss: " + sequenceNumber);
-                    isSegmentLost = true;
-                } else {
-                    isSegmentLost = false;
-                }
-            }
-
-            if (!isSegmentLost) {
-                String segment = String.valueOf(sequenceNumber);
-                sendData(segment);
-            }
+            String segment = String.valueOf(sequenceNumber);
+            sendData(segment);
 
             // Start a timer for each segment sent
             long startTime = System.currentTimeMillis();
@@ -128,9 +115,10 @@ public class Client {
                         }
                     }
                 } catch (SocketTimeoutException e) {
-                    // Resend the unacknowledged segment
-                    System.out.println("Timeout. Resending unacknowledged segments.");
-                    break;
+                    // Timeout reached, no ACK received, assume server is offline
+                    System.out.println("Server is offline. Disconnecting from the server.");
+                    isConnected = false;
+                    return;
                 }
 
                 // If all the segments are acknowledged, increase the window size
@@ -145,7 +133,6 @@ public class Client {
 
                 // If the timer exceeds the timeout, resend the unacknowledged segment
                 if (System.currentTimeMillis() - startTime >= TIMEOUT) {
-                    System.out.println("Timeout. Resending unacknowledged segments.");
                     break;
                 }
             }
