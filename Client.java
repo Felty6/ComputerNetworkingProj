@@ -13,6 +13,7 @@ public class Client {
     private InetAddress serverAddress;
     private int serverPort;
     private boolean isConnected;
+    private int windowSize;
 
     private List<Integer> windowSizeHistory = new ArrayList<>();
     private List<Integer> sentSeqNumHistory = new ArrayList<>();
@@ -22,6 +23,7 @@ public class Client {
         serverAddress = InetAddress.getByName(serverIP);
         this.serverPort = serverPort;
         isConnected = false;
+        windowSize = INITIAL_WINDOW_SIZE;
     }
 
     public void start() throws IOException {
@@ -46,14 +48,13 @@ public class Client {
             System.out.println("Failed to establish a connection with the server.");
         }
 
-        clientSocket.close();
+        //clientSocket.close();
     }
 
     private void sendDataSegments() throws IOException {
         int sequenceNumber = 0;
         int sentSegments = 0;
         int receivedAcks = 0;
-        int windowSize = INITIAL_WINDOW_SIZE;
         int lastAckSeqNum = 0;
         boolean isSegmentLost = false;
 
@@ -134,6 +135,8 @@ public class Client {
         }
 
         isConnected = false;
+        // Close the client socket after sending segments
+        clientSocket.close();
     }
 
     private void sendData(String message) throws IOException {
