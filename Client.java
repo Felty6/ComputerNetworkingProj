@@ -57,7 +57,7 @@ public class Client {
         byte[] receiveData = new byte[1024];
         DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
         clientSocket.receive(receivePacket);
-        String receivedData = new String(receivePacket.getData()).trim();
+        String receivedData = new String(receivePacket.getData(), 0, receivePacket.getLength());
 
         if (receivedData.equals("Connection setup success")) {
             System.out.println("Connection established with server: " + serverAddress + ":" + serverPort);
@@ -74,7 +74,7 @@ public class Client {
         int lastAckSeqNum = 0;
         boolean isSegmentLost = false;
 
-        while (sentSegments < 10000000) {
+        while (isConnected && sentSegments < 10000000) {
             if (sequenceNumber % 1024 == 0) {
                 // Simulate segment loss by not sending every 1024th segment
                 if (Math.random() < 0.2) {
@@ -103,7 +103,7 @@ public class Client {
 
                 try {
                     clientSocket.receive(receivePacket);
-                    String receivedData = new String(receivePacket.getData()).trim();
+                    String receivedData = new String(receivePacket.getData(), 0, receivePacket.getLength());
 
                     // Split the receivedData by whitespaces to handle any potential leading/trailing spaces
                     String[] dataParts = receivedData.split("\\s+");
@@ -155,6 +155,9 @@ public class Client {
         isConnected = false;
         // Close the client socket after sending segments
         clientSocket.close();
+
+        System.out.println("Disconnected with the server.");
+        System.exit(0);
     }
 
     private void sendData(String message) throws IOException {
