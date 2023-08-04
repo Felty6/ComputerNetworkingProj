@@ -128,6 +128,8 @@ public class Client {
 
             sequenceNumber++;
         }
+
+        isConnected = false;
     }
 
     private void sendData(String message) throws IOException {
