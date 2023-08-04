@@ -119,9 +119,9 @@ public class Client {
                         }
                     }
                 } catch (SocketTimeoutException e) {
-                    // Timeout reached, no ACK received, assume server is offline
-                    isConnected = false;
-                    break;
+                    // Timeout reached, no ACK received, assume segment loss
+                    System.out.println("Timeout. Resending unacknowledged segment: " + sequenceNumber);
+                    continue;
                 }
 
                 // If all the segments are acknowledged, increase the window size
@@ -136,6 +136,13 @@ public class Client {
 
                 // If the timer exceeds the timeout, resend the unacknowledged segment
                 if (System.currentTimeMillis() - startTime >= TIMEOUT) {
+                    System.out.println("Timeout. Resending unacknowledged segment: " + sequenceNumber);
+                    continue;
+                }
+
+                // Move to the next segment and check if it is time to send the next segment
+                sequenceNumber++;
+                if (sequenceNumber % 1024 == 0) {
                     break;
                 }
             }
