@@ -153,9 +153,7 @@ public class Client {
 
         try {
             Client client = new Client(serverIP, serverPort);
-            while (true) {
-                client.start();
-            }
+            client.start();
         } catch (IOException e) {
             e.printStackTrace();
         }
