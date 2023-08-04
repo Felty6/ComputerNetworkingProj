@@ -27,11 +27,32 @@ public class Client {
     }
 
     public void start() throws IOException {
-        if (!isConnected) {
-            // Send the initial string to the server
-            String initialString = "network";
-            sendData(initialString);
+        while (true) {
+            if (!isConnected) {
+                System.out.println("Waiting for connection with the server...");
+                try {
+                    // Try to connect to the server
+                    connectToServer();
+                } catch (IOException e) {
+                    // Connection failed, retry after a short delay
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException ex) {
+                        ex.printStackTrace();
+                    }
+                }
+            } else {
+                // Start sending data segments
+                sendDataSegments();
+                break;
+            }
         }
+    }
+
+    private void connectToServer() throws IOException {
+        // Send the initial string to the server
+        String initialString = "network";
+        sendData(initialString);
 
         byte[] receiveData = new byte[1024];
         DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
@@ -41,14 +62,9 @@ public class Client {
         if (receivedData.equals("Connection setup success")) {
             System.out.println("Connection established with server: " + serverAddress + ":" + serverPort);
             isConnected = true;
-
-            // Start sending data segments
-            sendDataSegments();
         } else {
             System.out.println("Failed to establish a connection with the server.");
         }
-
-        //clientSocket.close();
     }
 
     private void sendDataSegments() throws IOException {
