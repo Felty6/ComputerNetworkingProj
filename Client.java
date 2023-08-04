@@ -55,19 +55,23 @@ public class Client {
         int receivedAcks = 0;
         int windowSize = INITIAL_WINDOW_SIZE;
         int lastAckSeqNum = 0;
+        boolean isSegmentLost = false;
 
         while (sentSegments < 10000000) {
             if (sequenceNumber % 1024 == 0) {
                 // Simulate segment loss by not sending every 1024th segment
                 if (Math.random() < 0.2) {
                     System.out.println("Segment loss: " + sequenceNumber);
-                    sequenceNumber++;
-                    continue;
+                    isSegmentLost = true;
+                } else {
+                    isSegmentLost = false;
                 }
             }
 
-            String segment = String.valueOf(sequenceNumber);
-            sendData(segment);
+            if (!isSegmentLost) {
+                String segment = String.valueOf(sequenceNumber);
+                sendData(segment);
+            }
 
             // Start a timer for each segment sent
             long startTime = System.currentTimeMillis();
