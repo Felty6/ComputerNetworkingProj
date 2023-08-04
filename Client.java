@@ -59,12 +59,15 @@ public class Client {
         int sentSegments = 0;
         int receivedAcks = 0;
         int lastAckSeqNum = -1;
+        int lastSentSeqNum = -1;
+        int missingSeqNumCount = 0;
 
         while (sentSegments < 10000000 && isConnected) {
             if (sequenceNumber % 1024 == 0) {
                 // Simulate segment loss by not sending every 1024th segment
                 if (Math.random() < 0.2) {
                     System.out.println("Segment loss: " + sequenceNumber);
+                    sequenceNumber++;
                     continue;
                 }
             }
@@ -87,6 +90,7 @@ public class Client {
                         if (ackSeqNum > lastAckSeqNum) {
                             receivedAcks += ackSeqNum - lastAckSeqNum;
                             lastAckSeqNum = ackSeqNum;
+                            missingSeqNumCount = 0;
 
                             // Adjust sliding window size based on ACK received
                             if (windowSize < MAX_WINDOW_SIZE) {
@@ -99,7 +103,18 @@ public class Client {
                 } catch (SocketTimeoutException e) {
                     // Resend the unacknowledged segment
                     System.out.println("Timeout. Resending unacknowledged segments.");
-                    break;
+                    sequenceNumber = lastAckSeqNum + 1;
+                    windowSize = Math.max(INITIAL_WINDOW_SIZE, windowSize / 2);
+                    missingSeqNumCount++;
+
+                    // Break if no progress in window size adjustment after a segment loss
+                    if (missingSeqNumCount >= windowSize) {
+                        System.out.println("Timeout. No progress in window size adjustment. Exiting.");
+                        isConnected = false;
+                        break;
+                    }
+
+                    continue;
                 }
 
                 // If all the segments are acknowledged, increase the window size
@@ -108,14 +123,15 @@ public class Client {
                 }
 
                 // If the window is full, stop the timer and move to the next segment
-                if (sequenceNumber - lastAckSeqNum + 1 >= windowSize) {
+                if (sequenceNumber - lastSentSeqNum >= windowSize) {
                     break;
                 }
 
                 // If the timer exceeds the timeout, resend the unacknowledged segment
                 if (System.currentTimeMillis() - startTime >= TIMEOUT) {
                     System.out.println("Timeout. Resending unacknowledged segments.");
-                    break;
+                    sequenceNumber = lastAckSeqNum + 1;
+                    continue;
                 }
             }
 
@@ -123,15 +139,20 @@ public class Client {
 
             // Store the window size
             windowSizeHistory.add(windowSize);
+            sentSeqNumHistory.add(sequenceNumber);
+
             if (sentSegments % 1000 == 0) {
                 // Goodput formula
-                double goodPut = (double) sentSegments / (sentSegments - receivedAcks);
+                double goodPut = (double) receivedAcks / sentSegments;
                 System.out.println("Sent segments: " + sentSegments + ", Received ACKs: " + receivedAcks
                         + ", Window size: " + windowSize + ", Good-put: " + goodPut);
             }
 
             sequenceNumber++;
+            lastSentSeqNum = sequenceNumber - 1;
         }
+
+        System.out.println("Disconnected with the server.");
     }
 
     private void sendData(String message) throws IOException {
